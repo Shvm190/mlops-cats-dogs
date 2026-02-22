@@ -1,0 +1,56 @@
+# ============================================================
+# MLOps Cats vs Dogs - Pinned Dependencies
+# Python 3.10+ required
+# ============================================================
+
+# --- Deep Learning ---
+torch==2.2.0
+torchvision==0.17.0
+torchaudio==2.2.0
+
+# --- Data Processing ---
+numpy==1.26.4
+Pillow==10.2.0
+opencv-python-headless==4.9.0.80
+scikit-learn==1.4.0
+pandas==2.2.0
+albumentations==1.3.1
+
+# --- MLflow / Experiment Tracking ---
+mlflow==2.10.2
+mlflow-skinny==2.10.2
+
+# --- API / Serving ---
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+aiofiles==23.2.1
+httpx==0.26.0
+streamlit==1.32.2
+
+# --- Monitoring & Metrics ---
+prometheus-client==0.20.0
+structlog==24.1.0
+
+# --- DVC (Data Versioning) ---
+dvc==3.38.1
+dvc-s3==3.0.1          # Optional: for S3 remote
+# dvc-gdrive==2.20.0   # Optional: for GDrive remote
+
+# --- Testing ---
+pytest==8.0.2
+pytest-asyncio==0.23.5
+pytest-cov==4.1.0
+httpx==0.26.0           # for FastAPI test client
+
+# --- Dev / Linting ---
+black==24.2.0
+ruff==0.2.2
+pre-commit==3.6.2
+
+# --- Utilities ---
+pyyaml==6.0.1
+tqdm==4.66.2
+click==8.1.7
+python-dotenv==1.0.1
+requests==2.31.0

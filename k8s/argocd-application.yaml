@@ -1,0 +1,79 @@
+# k8s/argocd-application.yaml
+# ============================================================
+# Argo CD Application — GitOps-style CD for Cats vs Dogs
+# ============================================================
+#
+# Prerequisites:
+#   1. Install Argo CD: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+#   2. Apply this manifest: kubectl apply -f k8s/argocd-application.yaml
+#
+# Argo CD will then continuously sync k8s/ manifests from Git
+# and auto-deploy when changes are pushed to main.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cats-dogs-classifier
+  namespace: argocd
+  labels:
+    app: cats-dogs-classifier
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/YOUR_ORG/mlops-cats-dogs.git
+    targetRevision: main
+    path: k8s/
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlops
+
+  syncPolicy:
+    automated:
+      prune: true        # Delete resources removed from Git
+      selfHeal: true     # Revert manual changes
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Health checks
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # Ignore HPA-managed replica count
+
+---
+# k8s/argocd-image-updater.yaml
+# Automatically update deployment when new image is pushed to registry
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cats-dogs-classifier-image-updater
+  namespace: argocd
+  annotations:
+    # Argo CD Image Updater annotations
+    argocd-image-updater.argoproj.io/image-list: "inference=ghcr.io/YOUR_ORG/cats-dogs-classifier"
+    argocd-image-updater.argoproj.io/inference.update-strategy: digest
+    argocd-image-updater.argoproj.io/inference.tag-filter: "sha-*"
+    argocd-image-updater.argoproj.io/write-back-method: git
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR_ORG/mlops-cats-dogs.git
+    targetRevision: main
+    path: k8s/
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlops

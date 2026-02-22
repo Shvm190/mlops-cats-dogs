@@ -1,0 +1,67 @@
+# configs/train_config.yaml
+# ============================================================
+# Training Configuration for Cats vs Dogs Classifier
+# ============================================================
+
+project:
+  name: "cats-dogs-classifier"
+  version: "1.0.0"
+  mlflow_tracking_uri: "mlruns"
+  mlflow_experiment: "cats-dogs-binary-classification"
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  image_size: 224
+  channels: 3
+  splits:
+    train: 0.80
+    val: 0.10
+    test: 0.10
+  random_seed: 42
+
+augmentation:
+  enabled: true
+  horizontal_flip: true
+  rotation_degrees: 15
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.2
+    hue: 0.1
+  random_crop: false
+  normalize:
+    mean: [0.485, 0.456, 0.406]   # ImageNet mean
+    std: [0.229, 0.224, 0.225]    # ImageNet std
+
+model:
+  architecture: "mobilenet_v2"    # Options: mobilenet_v2, simple_cnn, resnet18
+  pretrained: true
+  num_classes: 2
+  dropout: 0.3
+  freeze_backbone_epochs: 2       # Freeze backbone for first N epochs then unfreeze
+
+training:
+  epochs: 20
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  optimizer: "adam"               # Options: adam, sgd, adamw
+  scheduler: "cosine"             # Options: step, cosine, plateau
+  scheduler_params:
+    T_max: 20
+  early_stopping:
+    enabled: true
+    patience: 5
+    min_delta: 0.001
+  gradient_clip: 1.0
+
+artifacts:
+  checkpoint_dir: "artifacts/checkpoints"
+  model_dir: "artifacts/models"
+  export_torchscript: true
+  export_onnx: false
+
+logging:
+  level: "INFO"
+  log_dir: "logs"

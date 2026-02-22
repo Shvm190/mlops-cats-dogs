@@ -1,0 +1,39 @@
+name: cats-dogs-classifier
+
+conda_env: environment.yaml
+
+entry_points:
+  train:
+    parameters:
+      config: {type: str, default: "configs/train_config.yaml"}
+      architecture: {type: str, default: "mobilenet_v2"}
+      epochs: {type: int, default: 20}
+      batch_size: {type: int, default: 32}
+      learning_rate: {type: float, default: 0.001}
+    command: >
+      python -m src.models.train
+      --config {config}
+      --architecture {architecture}
+      --epochs {epochs}
+      --batch-size {batch_size}
+      --lr {learning_rate}
+
+  preprocess:
+    parameters:
+      raw_dir: {type: str, default: "data/raw"}
+      processed_dir: {type: str, default: "data/processed"}
+      image_size: {type: int, default: 224}
+    command: >
+      python -m src.data.preprocess
+      --raw-dir {raw_dir}
+      --processed-dir {processed_dir}
+      --image-size {image_size}
+
+  evaluate:
+    parameters:
+      model_path: {type: str, default: "artifacts/models/model_torchscript.pt"}
+      test_dir: {type: str, default: "data/processed/test"}
+    command: >
+      python -m src.models.evaluate
+      --model-path {model_path}
+      --test-dir {test_dir}

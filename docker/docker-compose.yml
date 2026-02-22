@@ -1,0 +1,116 @@
+# ============================================================
+# docker-compose.yml
+# Full MLOps stack: inference service + frontend + MLflow + Prometheus + Grafana
+# ============================================================
+
+networks:
+  mlops-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+services:
+
+  # ─── Inference Service ──────────────────────────────────────────────────────
+  inference:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: cats-dogs-classifier:latest
+    restart: unless-stopped
+    ports:
+      - "${INFERENCE_HOST_PORT:-8080}:8080"
+    volumes:
+      - ../artifacts:/app/artifacts:ro
+      - ../logs:/app/logs
+    environment:
+      - MODEL_PATH=artifacts/models/model_torchscript.pt
+      - METADATA_PATH=artifacts/models/model_metadata.json
+      - LOG_LEVEL=INFO
+      - MAX_UPLOAD_SIZE_MB=10
+    networks:
+      - mlops-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "2G"
+
+  # ─── Streamlit Frontend ─────────────────────────────────────────────────────
+  frontend:
+    image: cats-dogs-classifier:latest
+    restart: unless-stopped
+    command: >
+      streamlit run src/frontend/app.py
+      --server.port 8501
+      --server.address 0.0.0.0
+      --server.headless true
+    environment:
+      - API_BASE_URL=http://inference:8080
+    ports:
+      - "${FRONTEND_HOST_PORT:-8501}:8501"
+    networks:
+      - mlops-net
+    depends_on:
+      - inference
+
+  # ─── MLflow Tracking Server ─────────────────────────────────────────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.10.2
+    restart: unless-stopped
+    ports:
+      - "${MLFLOW_HOST_PORT:-5001}:5000"
+    volumes:
+      - ../mlruns:/Users/homeaccount/PycharmProjects/mlops-cats-dogs/mlruns
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --serve-artifacts
+      --backend-store-uri /Users/homeaccount/PycharmProjects/mlops-cats-dogs/mlruns
+      --artifacts-destination /Users/homeaccount/PycharmProjects/mlops-cats-dogs/mlruns
+    networks:
+      - mlops-net
+
+  # ─── Prometheus ─────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.49.0
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    networks:
+      - mlops-net
+
+  # ─── Grafana ────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.2.3
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_HOST_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - mlops-net
+    depends_on:
+      - prometheus

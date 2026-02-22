@@ -1,0 +1,104 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: "python -m src.data.preprocess --raw-dir data/raw --processed-dir data/processed
+      --image-size 224 --train-ratio 0.80 --val-ratio 0.10 --seed 42\n"
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: c6955b34c555f87eedd416650316bdd2.dir
+      size: 848878706
+      nfiles: 25000
+    - path: src/data/preprocess.py
+      hash: md5
+      md5: 43866e9bced47e46d71858ce669da72e
+      size: 11353
+    params:
+      configs/train_config.yaml:
+        data.image_size: 224
+        data.random_seed: 42
+        data.splits:
+          train: 0.8
+          val: 0.1
+          test: 0.1
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: 62463f4f9ca8a8bf7193f145eb57038f.dir
+      size: 544053287
+      nfiles: 25000
+  train:
+    cmd: "python -m src.models.train --config configs/train_config.yaml\n"
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: 62463f4f9ca8a8bf7193f145eb57038f.dir
+      size: 544053287
+      nfiles: 25000
+    - path: src/data/dataset.py
+      hash: md5
+      md5: 3849bb61eed5b19bdade373a004e308d
+      size: 5779
+    - path: src/models/architecture.py
+      hash: md5
+      md5: 0da1c915f01e64745a81d56afdfe986d
+      size: 6234
+    - path: src/models/train.py
+      hash: md5
+      md5: 89860e9aefad6b2efae3a86b9f1cb501
+      size: 18736
+    params:
+      configs/train_config.yaml:
+        model.architecture: mobilenet_v2
+        model.pretrained: true
+        training.batch_size: 32
+        training.epochs: 20
+        training.learning_rate: 0.001
+        training.optimizer: adam
+    outs:
+    - path: artifacts/models/model.pth
+      hash: md5
+      md5: cbbd264b14c259fdf066eb0045143611
+      size: 9133570
+    - path: artifacts/models/model_metadata.json
+      hash: md5
+      md5: 234779b31e6215c5b727bd208cc84851
+      size: 379
+    - path: artifacts/models/model_torchscript.pt
+      hash: md5
+      md5: e84adbdfd2350caadf3df1f77f349e26
+      size: 9455543
+    - path: artifacts/models/training_history.json
+      hash: md5
+      md5: 25906566c247c70f48935c9d587e627a
+      size: 630
+  evaluate:
+    cmd: "python -m src.models.evaluate --model-path artifacts/models/model_torchscript.pt
+      --test-dir data/processed/test --output-dir artifacts/evaluation\n"
+    deps:
+    - path: artifacts/models/model_torchscript.pt
+      hash: md5
+      md5: e84adbdfd2350caadf3df1f77f349e26
+      size: 9455543
+    - path: data/processed/test
+      hash: md5
+      md5: 1f92d17b32b55ef351c59c8400bc3eac.dir
+      size: 54174368
+      nfiles: 2502
+    - path: src/models/evaluate.py
+      hash: md5
+      md5: f91e6f16c1e25fdab96511f228786da1
+      size: 4356
+    outs:
+    - path: artifacts/evaluation/classification_report.txt
+      hash: md5
+      md5: 10a59a3225530bf5855494f91d05a293
+      size: 326
+    - path: artifacts/evaluation/confusion_matrix.json
+      hash: md5
+      md5: 2a871d7bdba6caf99f02274b323a77d5
+      size: 128
+    - path: artifacts/evaluation/metrics.json
+      hash: md5
+      md5: 2163229951c44efa379c16486fd0b1ce
+      size: 109

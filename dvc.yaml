@@ -1,0 +1,77 @@
+# dvc.yaml
+# ============================================================
+# DVC Pipeline Definition
+# Defines reproducible stages: preprocess → train → evaluate
+#
+# Usage:
+#   dvc repro              # Run all stages
+#   dvc repro preprocess   # Run only preprocess stage
+#   dvc dag                # Show pipeline DAG
+# ============================================================
+
+stages:
+
+  # ─── Stage 1: Data Preprocessing ──────────────────────────────────────────
+  preprocess:
+    cmd: >
+      python -m src.data.preprocess
+      --raw-dir data/raw
+      --processed-dir data/processed
+      --image-size 224
+      --train-ratio 0.80
+      --val-ratio 0.10
+      --seed 42
+    deps:
+      - src/data/preprocess.py
+      - data/raw
+    outs:
+      - data/processed
+    params:
+      - configs/train_config.yaml:
+          - data.image_size
+          - data.splits
+          - data.random_seed
+
+  # ─── Stage 2: Model Training ───────────────────────────────────────────────
+  train:
+    cmd: >
+      python -m src.models.train
+      --config configs/train_config.yaml
+    deps:
+      - src/models/train.py
+      - src/models/architecture.py
+      - src/data/dataset.py
+      - data/processed
+    outs:
+      - artifacts/models/model_torchscript.pt
+      - artifacts/models/model.pth
+      - artifacts/models/model_metadata.json
+      - artifacts/models/training_history.json
+    params:
+      - configs/train_config.yaml:
+          - model.architecture
+          - model.pretrained
+          - training.epochs
+          - training.batch_size
+          - training.learning_rate
+          - training.optimizer
+
+  # ─── Stage 3: Evaluation ───────────────────────────────────────────────────
+  evaluate:
+    cmd: >
+      python -m src.models.evaluate
+      --model-path artifacts/models/model_torchscript.pt
+      --test-dir data/processed/test
+      --output-dir artifacts/evaluation
+    deps:
+      - src/models/evaluate.py
+      - artifacts/models/model_torchscript.pt
+      - data/processed/test
+    outs:
+      - artifacts/evaluation/classification_report.txt
+    metrics:
+      - artifacts/evaluation/metrics.json:
+          cache: false
+    plots:
+      - artifacts/evaluation/confusion_matrix.json:
+          cache: false

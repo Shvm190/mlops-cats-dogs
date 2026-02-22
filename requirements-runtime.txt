@@ -1,0 +1,22 @@
+# Runtime dependencies for inference + frontend containers
+
+# --- Core ML runtime ---
+torch==2.2.0
+torchvision==0.17.0
+numpy==1.26.4
+Pillow==10.2.0
+scikit-learn==1.4.0
+
+# --- API / serving ---
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+aiofiles==23.2.1
+requests==2.31.0
+
+# --- Monitoring / logging ---
+prometheus-client==0.20.0
+structlog==24.1.0
+
+# --- Optional UI ---
+streamlit==1.32.2

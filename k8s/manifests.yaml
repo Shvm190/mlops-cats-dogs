@@ -1,0 +1,209 @@
+# k8s/deployment.yaml
+# ============================================================
+# Kubernetes Deployment for Cats vs Dogs Inference Service
+# Compatible with: minikube, kind, microk8s, EKS, GKE, AKS
+# ============================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cats-dogs-classifier
+  namespace: mlops
+  labels:
+    app: cats-dogs-classifier
+    version: "1.0.0"
+    component: inference
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cats-dogs-classifier
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0   # Zero-downtime deployments
+  template:
+    metadata:
+      labels:
+        app: cats-dogs-classifier
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: cats-dogs-sa
+
+      # Init container: copy model artifacts from ConfigMap / PVC
+      initContainers:
+        - name: model-init
+          image: busybox:1.36
+          command: ["sh", "-c", "echo 'Model artifacts ready'"]
+          volumeMounts:
+            - name: model-artifacts
+              mountPath: /artifacts
+
+      containers:
+        - name: inference
+          image: ghcr.io/YOUR_ORG/cats-dogs-classifier:latest   # Updated by CD pipeline
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+
+          env:
+            - name: MODEL_PATH
+              value: "artifacts/models/model_torchscript.pt"
+            - name: METADATA_PATH
+              value: "artifacts/models/model_metadata.json"
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: cats-dogs-config
+                  key: LOG_LEVEL
+            - name: MAX_UPLOAD_SIZE_MB
+              value: "10"
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+
+          volumeMounts:
+            - name: model-artifacts
+              mountPath: /app/artifacts
+              readOnly: true
+
+          # Startup probe: wait for model to load (up to 2 minutes)
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 24   # 24 * 5s = 2 minutes max startup
+
+          # Liveness probe: restart if service hangs
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Readiness probe: only route traffic when ready
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+
+      volumes:
+        - name: model-artifacts
+          persistentVolumeClaim:
+            claimName: model-artifacts-pvc
+
+      terminationGracePeriodSeconds: 30
+
+---
+# k8s/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cats-dogs-classifier-svc
+  namespace: mlops
+  labels:
+    app: cats-dogs-classifier
+spec:
+  type: ClusterIP      # Use LoadBalancer for cloud, NodePort for local
+  selector:
+    app: cats-dogs-classifier
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+
+---
+# k8s/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mlops
+  labels:
+    name: mlops
+
+---
+# k8s/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cats-dogs-config
+  namespace: mlops
+data:
+  LOG_LEVEL: "INFO"
+  MAX_UPLOAD_SIZE_MB: "10"
+  WORKERS: "1"
+
+---
+# k8s/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cats-dogs-sa
+  namespace: mlops
+
+---
+# k8s/pvc.yaml
+# Persistent Volume Claim for model artifacts
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-artifacts-pvc
+  namespace: mlops
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard   # Adjust for your cluster (gp2 for AWS, standard for minikube)
+
+---
+# k8s/hpa.yaml
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cats-dogs-hpa
+  namespace: mlops
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cats-dogs-classifier
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
