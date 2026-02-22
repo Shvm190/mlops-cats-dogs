@@ -27,7 +27,9 @@ import yaml
 import click
 from tqdm import tqdm
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # ─── Constants ────────────────────────────────────────────────────────────────
@@ -38,6 +40,7 @@ IMAGE_SIZE = (224, 224)
 
 
 # ─── Core Preprocessing Functions ────────────────────────────────────────────
+
 
 def load_and_validate_image(image_path: Path) -> Image.Image:
     """
@@ -54,8 +57,8 @@ def load_and_validate_image(image_path: Path) -> Image.Image:
     """
     try:
         img = Image.open(image_path)
-        img.verify()                    # Check for corruption
-        img = Image.open(image_path)    # Re-open after verify (verify closes)
+        img.verify()  # Check for corruption
+        img = Image.open(image_path)  # Re-open after verify (verify closes)
         img = ImageOps.exif_transpose(img)  # Fix EXIF rotation
         img = img.convert("RGB")
         return img
@@ -63,7 +66,9 @@ def load_and_validate_image(image_path: Path) -> Image.Image:
         raise ValueError(f"Cannot load image {image_path}: {e}") from e
 
 
-def resize_image(img: Image.Image, target_size: Tuple[int, int] = IMAGE_SIZE) -> Image.Image:
+def resize_image(
+    img: Image.Image, target_size: Tuple[int, int] = IMAGE_SIZE
+) -> Image.Image:
     """
     Resize image to target size using high-quality Lanczos resampling.
 
@@ -77,7 +82,9 @@ def resize_image(img: Image.Image, target_size: Tuple[int, int] = IMAGE_SIZE) ->
     return img.resize(target_size, Image.Resampling.LANCZOS)
 
 
-def process_single_image(src_path: Path, dst_path: Path, target_size: Tuple[int, int] = IMAGE_SIZE) -> bool:
+def process_single_image(
+    src_path: Path, dst_path: Path, target_size: Tuple[int, int] = IMAGE_SIZE
+) -> bool:
     """
     Load, validate, resize, and save a single image.
 
@@ -104,7 +111,7 @@ def split_file_list(
     file_list: List[Path],
     train_ratio: float = 0.80,
     val_ratio: float = 0.10,
-    seed: int = 42
+    seed: int = 42,
 ) -> Tuple[List[Path], List[Path], List[Path]]:
     """
     Split a list of files into train/val/test sets.
@@ -127,13 +134,14 @@ def split_file_list(
     n_val = int(n * val_ratio)
 
     train = shuffled[:n_train]
-    val = shuffled[n_train:n_train + n_val]
-    test = shuffled[n_train + n_val:]
+    val = shuffled[n_train : n_train + n_val]
+    test = shuffled[n_train + n_val :]
 
     return train, val, test
 
 
 # ─── Pipeline ────────────────────────────────────────────────────────────────
+
 
 def discover_raw_images(raw_dir: Path) -> Dict[str, List[Path]]:
     """
@@ -162,7 +170,8 @@ def discover_raw_images(raw_dir: Path) -> Dict[str, List[Path]]:
             cls_dir = pet_images_dir / cls.capitalize()
             if cls_dir.exists():
                 discovered[cls] = [
-                    p for p in sorted(cls_dir.iterdir())
+                    p
+                    for p in sorted(cls_dir.iterdir())
                     if p.suffix.lower() in image_extensions
                 ]
         logger.info(f"Discovered PetImages structure: {pet_images_dir}")
@@ -173,7 +182,8 @@ def discover_raw_images(raw_dir: Path) -> Dict[str, List[Path]]:
                 cls_dir = raw_dir / subdir_name
                 if cls_dir.exists():
                     discovered[cls] = [
-                        p for p in sorted(cls_dir.iterdir())
+                        p
+                        for p in sorted(cls_dir.iterdir())
                         if p.suffix.lower() in image_extensions
                     ]
                     break
@@ -208,7 +218,9 @@ def run_preprocessing_pipeline(
     logger.info(f"  Raw dir      : {raw_path}")
     logger.info(f"  Processed dir: {processed_path}")
     logger.info(f"  Image size   : {image_size}x{image_size}")
-    logger.info(f"  Split        : {train_ratio:.0%}/{val_ratio:.0%}/{1-train_ratio-val_ratio:.0%}")
+    logger.info(
+        f"  Split        : {train_ratio:.0%}/{val_ratio:.0%}/{1-train_ratio-val_ratio:.0%}"
+    )
     logger.info("=" * 60)
 
     # Discover
@@ -255,7 +267,9 @@ def run_preprocessing_pipeline(
                 else:
                     skipped_count += 1
 
-            logger.info(f"  [{split_name}/{cls}] Processed: {processed_count}, Skipped: {skipped_count}")
+            logger.info(
+                f"  [{split_name}/{cls}] Processed: {processed_count}, Skipped: {skipped_count}"
+            )
             stats["skipped"] += skipped_count
             stats["total_processed"] += processed_count
 
@@ -294,6 +308,7 @@ def run_preprocessing_pipeline(
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────
 
+
 @click.command()
 @click.option("--raw-dir", default="data/raw", help="Raw data directory")
 @click.option("--processed-dir", default="data/processed", help="Output directory")
@@ -301,9 +316,23 @@ def run_preprocessing_pipeline(
 @click.option("--train-ratio", default=0.80, help="Train split ratio")
 @click.option("--val-ratio", default=0.10, help="Validation split ratio")
 @click.option("--seed", default=42, help="Random seed")
-@click.option("--max-per-class", default=None, type=int, help="Limit images per class (for testing)")
+@click.option(
+    "--max-per-class",
+    default=None,
+    type=int,
+    help="Limit images per class (for testing)",
+)
 @click.option("--config", default=None, help="Path to YAML config (overrides CLI args)")
-def main(raw_dir, processed_dir, image_size, train_ratio, val_ratio, seed, max_per_class, config):
+def main(
+    raw_dir,
+    processed_dir,
+    image_size,
+    train_ratio,
+    val_ratio,
+    seed,
+    max_per_class,
+    config,
+):
     """Preprocess Cats vs Dogs dataset for training."""
     if config:
         with open(config) as f:

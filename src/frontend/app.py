@@ -25,7 +25,9 @@ def call_ready(api_base_url: str) -> bool:
     return response.status_code == 200
 
 
-def call_predict(api_base_url: str, filename: str, content: bytes, content_type: str) -> Dict:
+def call_predict(
+    api_base_url: str, filename: str, content: bytes, content_type: str
+) -> Dict:
     files = {"file": (filename, content, content_type or "application/octet-stream")}
     response = requests.post(
         f"{api_base_url}/predict",
@@ -36,7 +38,9 @@ def call_predict(api_base_url: str, filename: str, content: bytes, content_type:
     return response.json()
 
 
-st.set_page_config(page_title="Cats vs Dogs Predictor", page_icon="🐾", layout="centered")
+st.set_page_config(
+    page_title="Cats vs Dogs Predictor", page_icon="🐾", layout="centered"
+)
 st.title("Cats vs Dogs Predictor")
 st.caption("Upload a pet photo and run inference through the deployed FastAPI service.")
 
@@ -53,7 +57,9 @@ with st.sidebar:
         except Exception as exc:
             st.error(f"Service check failed: {exc}")
 
-uploaded_file = st.file_uploader("Upload image", type=["jpg", "jpeg", "png", "bmp", "webp"])
+uploaded_file = st.file_uploader(
+    "Upload image", type=["jpg", "jpeg", "png", "bmp", "webp"]
+)
 
 if uploaded_file is not None:
     image_bytes = uploaded_file.getvalue()

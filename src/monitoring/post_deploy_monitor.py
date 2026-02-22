@@ -18,16 +18,19 @@ import requests
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 # ─── Default Config ───────────────────────────────────────────────────────────
 
 API_BASE_URL = "http://localhost:8080"
-CONFIDENCE_THRESHOLD = 0.7    # Flag predictions below this
-ACCURACY_THRESHOLD = 0.85     # Alert if accuracy drops below this
+CONFIDENCE_THRESHOLD = 0.7  # Flag predictions below this
+ACCURACY_THRESHOLD = 0.85  # Alert if accuracy drops below this
 
 
 # ─── Simulated Evaluation Batch ──────────────────────────────────────────────
+
 
 def generate_simulated_batch(
     test_dir: str = "data/processed/test",
@@ -48,7 +51,7 @@ def generate_simulated_batch(
             logger.warning(f"Test directory not found: {cls_dir}")
             continue
 
-        images = list(cls_dir.glob("*.jpg"))[:max_samples // 2]
+        images = list(cls_dir.glob("*.jpg"))[: max_samples // 2]
         for img_path in images:
             batch.append({"image_path": str(img_path), "true_label": cls})
 
@@ -58,6 +61,7 @@ def generate_simulated_batch(
 
 
 # ─── Prediction Collector ─────────────────────────────────────────────────────
+
 
 def run_predictions_on_batch(
     batch: List[Dict],
@@ -92,25 +96,29 @@ def run_predictions_on_batch(
             response.raise_for_status()
             pred = response.json()
 
-            results.append({
-                "true_label": true_label,
-                "predicted_label": pred["label"],
-                "confidence": pred["confidence"],
-                "probabilities": pred["probabilities"],
-                "latency_ms": pred["latency_ms"],
-                "correct": pred["label"] == true_label,
-            })
+            results.append(
+                {
+                    "true_label": true_label,
+                    "predicted_label": pred["label"],
+                    "confidence": pred["confidence"],
+                    "probabilities": pred["probabilities"],
+                    "latency_ms": pred["latency_ms"],
+                    "correct": pred["label"] == true_label,
+                }
+            )
         except Exception as e:
             logger.warning(f"Request failed for {image_path.name}: {e}")
-            results.append({
-                "true_label": true_label,
-                "predicted_label": None,
-                "confidence": None,
-                "probabilities": None,
-                "latency_ms": None,
-                "correct": False,
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "true_label": true_label,
+                    "predicted_label": None,
+                    "confidence": None,
+                    "probabilities": None,
+                    "latency_ms": None,
+                    "correct": False,
+                    "error": str(e),
+                }
+            )
 
         if (i + 1) % 10 == 0:
             logger.info(f"  Processed {i+1}/{len(batch)} samples...")
@@ -119,6 +127,7 @@ def run_predictions_on_batch(
 
 
 # ─── Metrics Computation ─────────────────────────────────────────────────────
+
 
 def compute_performance_metrics(results: List[Dict]) -> Dict:
     """
@@ -182,6 +191,7 @@ def compute_performance_metrics(results: List[Dict]) -> Dict:
 
 # ─── Main Monitoring Run ──────────────────────────────────────────────────────
 
+
 def run_monitoring(
     api_url: str = API_BASE_URL,
     test_dir: str = "data/processed/test",
@@ -242,14 +252,17 @@ def run_monitoring(
     if log_to_mlflow:
         try:
             import mlflow
+
             with mlflow.start_run(run_name="post_deploy_monitoring"):
-                mlflow.log_metrics({
-                    "monitor_accuracy": metrics["accuracy"],
-                    "monitor_f1": metrics["f1_score"],
-                    "monitor_mean_confidence": metrics["mean_confidence"],
-                    "monitor_mean_latency_ms": metrics["mean_latency_ms"],
-                    "monitor_pct_low_confidence": metrics["pct_low_confidence"],
-                })
+                mlflow.log_metrics(
+                    {
+                        "monitor_accuracy": metrics["accuracy"],
+                        "monitor_f1": metrics["f1_score"],
+                        "monitor_mean_confidence": metrics["mean_confidence"],
+                        "monitor_mean_latency_ms": metrics["mean_latency_ms"],
+                        "monitor_pct_low_confidence": metrics["pct_low_confidence"],
+                    }
+                )
                 mlflow.log_artifact(str(output))
             logger.info("Metrics logged to MLflow")
         except Exception as e:
@@ -260,6 +273,7 @@ def run_monitoring(
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Post-deployment model monitoring")
     parser.add_argument("--api-url", default=API_BASE_URL)
     parser.add_argument("--test-dir", default="data/processed/test")

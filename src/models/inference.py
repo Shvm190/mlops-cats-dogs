@@ -30,6 +30,7 @@ CLASS_NAMES = ["cat", "dog"]
 
 # ─── Model Loader ────────────────────────────────────────────────────────────
 
+
 class ModelLoader:
     """
     Singleton-style model loader that caches the model in memory.
@@ -87,7 +88,9 @@ class ModelLoader:
             model_state = state_obj["model_state_dict"]
             if isinstance(model_state, dict):
                 return model_state
-            raise ValueError("Invalid checkpoint format: 'model_state_dict' is not a dict")
+            raise ValueError(
+                "Invalid checkpoint format: 'model_state_dict' is not a dict"
+            )
 
         if isinstance(state_obj, dict) and "state_dict" in state_obj:
             model_state = state_obj["state_dict"]
@@ -98,7 +101,9 @@ class ModelLoader:
         if isinstance(state_obj, dict):
             return state_obj
 
-        raise ValueError("Invalid checkpoint format: expected a state_dict-like dictionary")
+        raise ValueError(
+            "Invalid checkpoint format: expected a state_dict-like dictionary"
+        )
 
     def load(self) -> "ModelLoader":
         """Load model from disk into memory."""
@@ -152,6 +157,7 @@ class ModelLoader:
 
 # ─── Preprocessing ───────────────────────────────────────────────────────────
 
+
 def preprocess_image(image: Image.Image, image_size: int = IMAGE_SIZE) -> torch.Tensor:
     """
     Preprocess a PIL Image for model inference.
@@ -169,7 +175,9 @@ def preprocess_image(image: Image.Image, image_size: int = IMAGE_SIZE) -> torch.
     return tensor.unsqueeze(0)  # Add batch dimension
 
 
-def preprocess_image_bytes(image_bytes: bytes, image_size: int = IMAGE_SIZE) -> torch.Tensor:
+def preprocess_image_bytes(
+    image_bytes: bytes, image_size: int = IMAGE_SIZE
+) -> torch.Tensor:
     """
     Preprocess raw image bytes for model inference.
 
@@ -181,11 +189,13 @@ def preprocess_image_bytes(image_bytes: bytes, image_size: int = IMAGE_SIZE) -> 
         Tensor of shape (1, 3, image_size, image_size).
     """
     import io
+
     image = Image.open(io.BytesIO(image_bytes))
     return preprocess_image(image, image_size)
 
 
 # ─── Prediction ──────────────────────────────────────────────────────────────
+
 
 def predict(
     model: torch.nn.Module,
@@ -222,7 +232,9 @@ def predict(
     return {
         "label": pred_label,
         "confidence": round(confidence, 4),
-        "probabilities": {cls: round(float(p), 4) for cls, p in zip(class_names, probs_np)},
+        "probabilities": {
+            cls: round(float(p), 4) for cls, p in zip(class_names, probs_np)
+        },
         "latency_ms": round(latency_ms, 2),
         "predicted_class_index": pred_idx,
     }

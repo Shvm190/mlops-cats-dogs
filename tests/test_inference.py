@@ -16,6 +16,7 @@ from PIL import Image
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 
+
 def make_jpeg_bytes(width: int = 300, height: int = 200) -> bytes:
     """Create valid JPEG image bytes for testing."""
     data = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
@@ -64,10 +65,12 @@ def mock_model_loader(mock_model, tmp_path):
 
 # ─── Tests: preprocess_image ─────────────────────────────────────────────────
 
+
 class TestPreprocessImage:
     def test_output_shape(self):
         """Preprocessed image should be (1, 3, 224, 224)."""
         from src.models.inference import preprocess_image
+
         img = Image.fromarray(
             np.random.randint(0, 255, (300, 300, 3), dtype=np.uint8), "RGB"
         )
@@ -77,6 +80,7 @@ class TestPreprocessImage:
     def test_output_dtype(self):
         """Output tensor should be float32."""
         from src.models.inference import preprocess_image
+
         img = Image.fromarray(
             np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8), "RGB"
         )
@@ -86,6 +90,7 @@ class TestPreprocessImage:
     def test_handles_non_224_size(self):
         """Custom image size should be respected."""
         from src.models.inference import preprocess_image
+
         img = Image.fromarray(
             np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8), "RGB"
         )
@@ -95,9 +100,8 @@ class TestPreprocessImage:
     def test_normalizes_values(self):
         """Values should be normalized (not in [0, 255] range)."""
         from src.models.inference import preprocess_image
-        img = Image.fromarray(
-            np.full((224, 224, 3), 128, dtype=np.uint8), "RGB"
-        )
+
+        img = Image.fromarray(np.full((224, 224, 3), 128, dtype=np.uint8), "RGB")
         tensor = preprocess_image(img)
         assert tensor.min() < 1.0
         assert tensor.max() < 5.0
@@ -105,6 +109,7 @@ class TestPreprocessImage:
     def test_preprocess_bytes_matches_image(self):
         """preprocess_image_bytes should give same result as preprocess_image for same image."""
         from src.models.inference import preprocess_image, preprocess_image_bytes
+
         img = Image.fromarray(
             np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8), "RGB"
         )
@@ -122,10 +127,12 @@ class TestPreprocessImage:
 
 # ─── Tests: predict function ─────────────────────────────────────────────────
 
+
 class TestPredictFunction:
     def test_returns_correct_keys(self, mock_model):
         """predict() result should have all required keys."""
         from src.models.inference import predict
+
         tensor = make_cat_tensor()
         result = predict(mock_model, tensor, torch.device("cpu"))
 
@@ -138,6 +145,7 @@ class TestPredictFunction:
     def test_label_is_valid_class(self, mock_model):
         """Predicted label should be 'cat' or 'dog'."""
         from src.models.inference import predict
+
         tensor = make_cat_tensor()
         result = predict(mock_model, tensor, torch.device("cpu"))
         assert result["label"] in ["cat", "dog"]
@@ -145,6 +153,7 @@ class TestPredictFunction:
     def test_confidence_in_valid_range(self, mock_model):
         """Confidence should be between 0 and 1."""
         from src.models.inference import predict
+
         tensor = make_cat_tensor()
         result = predict(mock_model, tensor, torch.device("cpu"))
         assert 0.0 <= result["confidence"] <= 1.0
@@ -152,6 +161,7 @@ class TestPredictFunction:
     def test_probabilities_sum_to_one(self, mock_model):
         """Softmax probabilities should sum to 1.0 (within tolerance)."""
         from src.models.inference import predict
+
         tensor = make_cat_tensor()
         result = predict(mock_model, tensor, torch.device("cpu"))
         total = sum(result["probabilities"].values())
@@ -160,6 +170,7 @@ class TestPredictFunction:
     def test_latency_is_positive(self, mock_model):
         """Latency should be a positive number."""
         from src.models.inference import predict
+
         tensor = make_cat_tensor()
         result = predict(mock_model, tensor, torch.device("cpu"))
         assert result["latency_ms"] > 0
@@ -167,6 +178,7 @@ class TestPredictFunction:
     def test_cat_prediction_for_cat_logits(self):
         """Model with cat-biased logits should predict 'cat'."""
         from src.models.inference import predict
+
         model = MagicMock()
         model.return_value = torch.tensor([[3.0, 0.1]])  # Strong cat bias
         model.__call__ = MagicMock(return_value=torch.tensor([[3.0, 0.1]]))
@@ -178,6 +190,7 @@ class TestPredictFunction:
     def test_dog_prediction_for_dog_logits(self):
         """Model with dog-biased logits should predict 'dog'."""
         from src.models.inference import predict
+
         model = MagicMock()
         model.return_value = torch.tensor([[0.1, 3.0]])  # Strong dog bias
         model.__call__ = MagicMock(return_value=torch.tensor([[0.1, 3.0]]))
@@ -188,6 +201,7 @@ class TestPredictFunction:
 
 
 # ─── Tests: ModelLoader ───────────────────────────────────────────────────────
+
 
 class TestModelLoader:
     def test_pth_uses_metadata_architecture(self, tmp_path, monkeypatch):
@@ -228,8 +242,12 @@ class TestModelLoader:
 
         mock_model = MagicMock()
         mock_model.to.return_value = mock_model
-        monkeypatch.setattr("src.models.architecture.build_model", lambda **kwargs: mock_model)
-        monkeypatch.setattr("torch.load", lambda *args, **kwargs: {"model_state_dict": {}})
+        monkeypatch.setattr(
+            "src.models.architecture.build_model", lambda **kwargs: mock_model
+        )
+        monkeypatch.setattr(
+            "torch.load", lambda *args, **kwargs: {"model_state_dict": {}}
+        )
 
         loader = ModelLoader(str(model_path), str(metadata_path))
         loader.load()
@@ -237,6 +255,7 @@ class TestModelLoader:
 
 
 # ─── Tests: API Endpoints (Integration) ──────────────────────────────────────
+
 
 class TestAPIEndpoints:
     """Integration tests for FastAPI endpoints using TestClient."""
@@ -248,8 +267,10 @@ class TestAPIEndpoints:
         from src.api.main import app
 
         # Patch the global model loader
-        with patch("src.api.main.model_loader", mock_model_loader), \
-             patch("src.models.inference.ModelLoader.get_instance", return_value=mock_model_loader):
+        with patch("src.api.main.model_loader", mock_model_loader), patch(
+            "src.models.inference.ModelLoader.get_instance",
+            return_value=mock_model_loader,
+        ):
             with TestClient(app) as c:
                 yield c
 
@@ -354,8 +375,10 @@ class TestAPIEndpoints:
         from fastapi.testclient import TestClient
         from src.api.main import app
 
-        with patch("src.api.main.model_loader", None), \
-             patch("src.models.inference.ModelLoader.get_instance", side_effect=RuntimeError("missing model")):
+        with patch("src.api.main.model_loader", None), patch(
+            "src.models.inference.ModelLoader.get_instance",
+            side_effect=RuntimeError("missing model"),
+        ):
             with TestClient(app) as c:
                 response = c.post(
                     "/predict/batch",
@@ -366,10 +389,12 @@ class TestAPIEndpoints:
 
 # ─── Tests: Model Architecture ───────────────────────────────────────────────
 
+
 class TestModelArchitecture:
     def test_simple_cnn_forward_pass(self):
         """SimpleCNN should accept (B, 3, 224, 224) and output (B, 2)."""
         from src.models.architecture import SimpleCNN
+
         model = SimpleCNN(num_classes=2)
         x = torch.zeros(2, 3, 224, 224)
         with torch.no_grad():
@@ -379,6 +404,7 @@ class TestModelArchitecture:
     def test_mobilenet_forward_pass(self):
         """MobileNetV2Classifier should accept (B, 3, 224, 224) and output (B, 2)."""
         from src.models.architecture import MobileNetV2Classifier
+
         model = MobileNetV2Classifier(num_classes=2, pretrained=False)
         x = torch.zeros(1, 3, 224, 224)
         with torch.no_grad():
@@ -387,7 +413,12 @@ class TestModelArchitecture:
 
     def test_build_model_factory(self):
         """build_model() should return correct model type."""
-        from src.models.architecture import build_model, SimpleCNN, MobileNetV2Classifier
+        from src.models.architecture import (
+            build_model,
+            SimpleCNN,
+            MobileNetV2Classifier,
+        )
+
         m1 = build_model("simple_cnn")
         assert isinstance(m1, SimpleCNN)
         m2 = build_model("mobilenet_v2", pretrained=False)
@@ -396,12 +427,14 @@ class TestModelArchitecture:
     def test_build_model_invalid_architecture(self):
         """build_model() with unknown architecture should raise ValueError."""
         from src.models.architecture import build_model
+
         with pytest.raises(ValueError, match="Unknown architecture"):
             build_model("nonexistent_model")
 
     def test_count_parameters(self):
         """Parameter counting should return valid dict."""
         from src.models.architecture import SimpleCNN, count_parameters
+
         model = SimpleCNN()
         counts = count_parameters(model)
         assert "total" in counts

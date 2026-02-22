@@ -21,15 +21,22 @@ if __package__ is None or __package__ == "":
 import numpy as np
 import torch
 from sklearn.metrics import (
-    accuracy_score, f1_score, precision_score, recall_score,
-    confusion_matrix, classification_report, roc_auc_score
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    confusion_matrix,
+    classification_report,
+    roc_auc_score,
 )
 import click
 
 from src.models.inference import ModelLoader
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 
 def evaluate_model(
@@ -58,11 +65,14 @@ def evaluate_model(
 
     # Load test data
     from src.data.dataset import CatsDogsDataset, get_eval_transforms
+
     dataset = CatsDogsDataset(
         root_dir=test_dir,
         transform=get_eval_transforms(image_size),
     )
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+    dataloader = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=False, num_workers=2
+    )
 
     all_preds, all_labels, all_probs = [], [], []
 

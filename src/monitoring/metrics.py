@@ -41,6 +41,7 @@ ERROR_COUNTER = Counter(
 
 # ─── Helper Functions ─────────────────────────────────────────────────────────
 
+
 def record_prediction(label: str, latency_ms: float):
     """Record a successful prediction."""
     PREDICTION_COUNTER.labels(label=label).inc()

@@ -35,18 +35,25 @@ import mlflow
 import mlflow.pytorch
 from mlflow.tracking import MlflowClient
 from sklearn.metrics import (
-    accuracy_score, f1_score, precision_score, recall_score,
-    confusion_matrix, classification_report
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    confusion_matrix,
+    classification_report,
 )
 
 from src.data.dataset import get_dataloaders
 from src.models.architecture import build_model, count_parameters
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
 # ─── Training Utilities ───────────────────────────────────────────────────────
+
 
 def get_device() -> torch.device:
     if torch.cuda.is_available():
@@ -83,7 +90,11 @@ def get_scheduler(optimizer, cfg: dict):
     if sched_name == "cosine":
         return CosineAnnealingLR(optimizer, T_max=params.get("T_max", 20))
     elif sched_name == "step":
-        return StepLR(optimizer, step_size=params.get("step_size", 7), gamma=params.get("gamma", 0.1))
+        return StepLR(
+            optimizer,
+            step_size=params.get("step_size", 7),
+            gamma=params.get("gamma", 0.1),
+        )
     elif sched_name == "plateau":
         return ReduceLROnPlateau(optimizer, mode="max", patience=3, factor=0.5)
     return None
@@ -127,7 +138,8 @@ class EarlyStopping:
 
     def step(self, metric: float) -> bool:
         improved = (
-            metric > self.best + self.min_delta if self.mode == "max"
+            metric > self.best + self.min_delta
+            if self.mode == "max"
             else metric < self.best - self.min_delta
         )
         if improved:
@@ -141,6 +153,7 @@ class EarlyStopping:
 
 
 # ─── Epoch Functions ─────────────────────────────────────────────────────────
+
 
 def run_epoch(
     model: nn.Module,
@@ -190,6 +203,7 @@ def run_epoch(
 
 
 # ─── Main Training Loop ───────────────────────────────────────────────────────
+
 
 def train(cfg: dict):
     """Full training pipeline with MLflow tracking."""
@@ -250,10 +264,14 @@ def train(cfg: dict):
     optimizer = get_optimizer(model, train_cfg)
     scheduler = get_scheduler(optimizer, train_cfg)
     early_stop_cfg = train_cfg.get("early_stopping", {})
-    early_stopper = EarlyStopping(
-        patience=early_stop_cfg.get("patience", 5),
-        min_delta=early_stop_cfg.get("min_delta", 1e-3),
-    ) if early_stop_cfg.get("enabled", True) else None
+    early_stopper = (
+        EarlyStopping(
+            patience=early_stop_cfg.get("patience", 5),
+            min_delta=early_stop_cfg.get("min_delta", 1e-3),
+        )
+        if early_stop_cfg.get("enabled", True)
+        else None
+    )
 
     # ── Artifact Directories ──
     checkpoint_dir = Path(artifact_cfg.get("checkpoint_dir", "artifacts/checkpoints"))
@@ -267,20 +285,22 @@ def train(cfg: dict):
         logger.info(f"MLflow Run ID: {run_id}")
 
         # Log parameters
-        mlflow.log_params({
-            "architecture": model_cfg.get("architecture"),
-            "pretrained": model_cfg.get("pretrained"),
-            "epochs": train_cfg.get("epochs"),
-            "batch_size": train_cfg.get("batch_size"),
-            "learning_rate": train_cfg.get("learning_rate"),
-            "optimizer": train_cfg.get("optimizer"),
-            "scheduler": train_cfg.get("scheduler"),
-            "image_size": data_cfg.get("image_size"),
-            "dropout": model_cfg.get("dropout"),
-            "total_params": param_counts["total"],
-            "trainable_params": param_counts["trainable"],
-            "mlflow_tracking_uri": effective_mlflow_uri,
-        })
+        mlflow.log_params(
+            {
+                "architecture": model_cfg.get("architecture"),
+                "pretrained": model_cfg.get("pretrained"),
+                "epochs": train_cfg.get("epochs"),
+                "batch_size": train_cfg.get("batch_size"),
+                "learning_rate": train_cfg.get("learning_rate"),
+                "optimizer": train_cfg.get("optimizer"),
+                "scheduler": train_cfg.get("scheduler"),
+                "image_size": data_cfg.get("image_size"),
+                "dropout": model_cfg.get("dropout"),
+                "total_params": param_counts["total"],
+                "trainable_params": param_counts["trainable"],
+                "mlflow_tracking_uri": effective_mlflow_uri,
+            }
+        )
 
         history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}
         best_val_acc = float("-inf")
@@ -301,8 +321,13 @@ def train(cfg: dict):
 
             # Train
             train_loss, train_acc, _, _ = run_epoch(
-                model, loaders["train"], criterion, optimizer, device,
-                is_train=True, grad_clip=grad_clip
+                model,
+                loaders["train"],
+                criterion,
+                optimizer,
+                device,
+                is_train=True,
+                grad_clip=grad_clip,
             )
 
             # Validate
@@ -328,25 +353,31 @@ def train(cfg: dict):
             )
 
             # Log metrics to MLflow
-            mlflow.log_metrics({
-                "train_loss": train_loss,
-                "train_acc": train_acc,
-                "val_loss": val_loss,
-                "val_acc": val_acc,
-                "learning_rate": current_lr,
-            }, step=epoch)
+            mlflow.log_metrics(
+                {
+                    "train_loss": train_loss,
+                    "train_acc": train_acc,
+                    "val_loss": val_loss,
+                    "val_acc": val_acc,
+                    "learning_rate": current_lr,
+                },
+                step=epoch,
+            )
 
             # Checkpoint best
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
-                torch.save({
-                    "epoch": epoch,
-                    "model_state_dict": model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "val_acc": val_acc,
-                    "val_loss": val_loss,
-                    "config": cfg,
-                }, best_model_path)
+                torch.save(
+                    {
+                        "epoch": epoch,
+                        "model_state_dict": model.state_dict(),
+                        "optimizer_state_dict": optimizer.state_dict(),
+                        "val_acc": val_acc,
+                        "val_loss": val_loss,
+                        "config": cfg,
+                    },
+                    best_model_path,
+                )
                 logger.info(f"  ✓ New best val_acc={val_acc:.4f} → saved checkpoint")
 
             history["train_loss"].append(train_loss)
@@ -368,7 +399,9 @@ def train(cfg: dict):
         )
 
         f1 = f1_score(test_labels, test_preds, average="binary", pos_label=1)
-        precision = precision_score(test_labels, test_preds, average="binary", pos_label=1)
+        precision = precision_score(
+            test_labels, test_preds, average="binary", pos_label=1
+        )
         recall = recall_score(test_labels, test_preds, average="binary", pos_label=1)
         cm = confusion_matrix(test_labels, test_preds)
         report = classification_report(
@@ -383,24 +416,30 @@ def train(cfg: dict):
         logger.info(f"\nClassification Report:\n{report}")
         logger.info(f"\nConfusion Matrix:\n{cm}")
 
-        mlflow.log_metrics({
-            "test_acc": test_acc,
-            "test_loss": test_loss,
-            "test_f1": f1,
-            "test_precision": precision,
-            "test_recall": recall,
-            "best_val_acc": best_val_acc,
-        })
+        mlflow.log_metrics(
+            {
+                "test_acc": test_acc,
+                "test_loss": test_loss,
+                "test_f1": f1,
+                "test_precision": precision,
+                "test_recall": recall,
+                "best_val_acc": best_val_acc,
+            }
+        )
 
         # ── Save Artifacts ──
         # Save confusion matrix as JSON
         cm_path = model_dir / "confusion_matrix.json"
         with open(cm_path, "w") as f:
-            json.dump({
-                "matrix": cm.tolist(),
-                "labels": ["cat", "dog"],
-                "test_acc": test_acc,
-            }, f, indent=2)
+            json.dump(
+                {
+                    "matrix": cm.tolist(),
+                    "labels": ["cat", "dog"],
+                    "test_acc": test_acc,
+                },
+                f,
+                indent=2,
+            )
 
         # Save classification report
         report_path = model_dir / "classification_report.txt"
@@ -469,6 +508,7 @@ def train(cfg: dict):
 
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────
+
 
 @click.command()
 @click.option("--config", default="configs/train_config.yaml", help="Config file path")

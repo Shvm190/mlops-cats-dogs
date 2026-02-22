@@ -24,7 +24,8 @@ from PIL import Image
 
 from src.api.schemas import (
     BatchPredictionResponse,
-    HealthResponse, ModelInfoResponse,
+    HealthResponse,
+    ModelInfoResponse,
     PredictionResponse,
 )
 from src.models.inference import ModelLoader, predict_from_bytes
@@ -35,7 +36,12 @@ from src.monitoring.metrics import (
     record_prediction,
     set_model_loaded,
 )
-from src.monitoring.logger import configure_logging, get_logger, log_request, log_prediction
+from src.monitoring.logger import (
+    configure_logging,
+    get_logger,
+    log_request,
+    log_prediction,
+)
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -150,6 +156,7 @@ async def _read_and_validate_image(file: UploadFile) -> tuple[bytes, int, int]:
 
 # ─── Middleware: Request Logging ──────────────────────────────────────────────
 
+
 @app.middleware("http")
 async def logging_middleware(request: Request, call_next):
     """Log all requests with timing."""
@@ -169,6 +176,7 @@ async def logging_middleware(request: Request, call_next):
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
+
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 async def health_check():
@@ -226,7 +234,9 @@ async def model_info():
 
 
 @app.post("/predict", response_model=PredictionResponse, tags=["Inference"])
-async def predict(file: UploadFile = File(..., description="Image file (JPEG, PNG, BMP)")):
+async def predict(
+    file: UploadFile = File(..., description="Image file (JPEG, PNG, BMP)")
+):
     """
     Classify an uploaded image as 'cat' or 'dog'.
 
@@ -271,7 +281,9 @@ async def predict(file: UploadFile = File(..., description="Image file (JPEG, PN
 
 
 @app.post("/predict/batch", response_model=BatchPredictionResponse, tags=["Inference"])
-async def predict_batch(files: list[UploadFile] = File(..., description="Up to 10 image files")):
+async def predict_batch(
+    files: list[UploadFile] = File(..., description="Up to 10 image files")
+):
     """
     Classify multiple images in one request (max 10).
     """
@@ -300,24 +312,28 @@ async def predict_batch(files: list[UploadFile] = File(..., description="Up to 1
             results.append(result)
         except HTTPException as e:
             record_error(f"http_{e.status_code}")
-            results.append({
-                "filename": file.filename,
-                "label": None,
-                "confidence": None,
-                "probabilities": None,
-                "latency_ms": None,
-                "error": e.detail,
-            })
+            results.append(
+                {
+                    "filename": file.filename,
+                    "label": None,
+                    "confidence": None,
+                    "probabilities": None,
+                    "latency_ms": None,
+                    "error": e.detail,
+                }
+            )
         except Exception as e:
             record_error("batch_inference_failure")
-            results.append({
-                "filename": file.filename,
-                "label": None,
-                "confidence": None,
-                "probabilities": None,
-                "latency_ms": None,
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "filename": file.filename,
+                    "label": None,
+                    "confidence": None,
+                    "probabilities": None,
+                    "latency_ms": None,
+                    "error": str(e),
+                }
+            )
 
     return BatchPredictionResponse(results=results, count=len(results))
 
@@ -331,4 +347,8 @@ async def metrics():
 @app.get("/", tags=["System"])
 async def root():
     """Redirect to docs."""
-    return {"message": "Cats vs Dogs Classifier API", "docs": "/docs", "health": "/health"}
+    return {
+        "message": "Cats vs Dogs Classifier API",
+        "docs": "/docs",
+        "health": "/health",
+    }

@@ -28,7 +28,10 @@ from src.data.dataset import (
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 
-def make_test_image(width: int = 300, height: int = 200, mode: str = "RGB") -> Image.Image:
+
+def make_test_image(
+    width: int = 300, height: int = 200, mode: str = "RGB"
+) -> Image.Image:
     """Create a synthetic test image."""
     data = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
     return Image.fromarray(data, mode=mode)
@@ -41,6 +44,7 @@ def save_test_image(img: Image.Image, path: Path, fmt: str = "JPEG"):
 
 
 # ─── Tests: load_and_validate_image ──────────────────────────────────────────
+
 
 class TestLoadAndValidateImage:
     def test_loads_valid_jpeg(self, tmp_path):
@@ -93,6 +97,7 @@ class TestLoadAndValidateImage:
 
 # ─── Tests: resize_image ──────────────────────────────────────────────────────
 
+
 class TestResizeImage:
     def test_resizes_to_target(self):
         """Image should be resized to exact target dimensions."""
@@ -120,6 +125,7 @@ class TestResizeImage:
 
 
 # ─── Tests: process_single_image ─────────────────────────────────────────────
+
 
 class TestProcessSingleImage:
     def test_processes_and_saves_image(self, tmp_path):
@@ -161,6 +167,7 @@ class TestProcessSingleImage:
 
 # ─── Tests: split_file_list ──────────────────────────────────────────────────
 
+
 class TestSplitFileList:
     def make_paths(self, n: int) -> list:
         return [Path(f"img_{i:04d}.jpg") for i in range(n)]
@@ -168,7 +175,9 @@ class TestSplitFileList:
     def test_correct_split_ratios(self):
         """Split sizes should match expected ratios (approximately)."""
         files = self.make_paths(1000)
-        train, val, test = split_file_list(files, train_ratio=0.8, val_ratio=0.1, seed=42)
+        train, val, test = split_file_list(
+            files, train_ratio=0.8, val_ratio=0.1, seed=42
+        )
 
         assert len(train) == 800
         assert len(val) == 100
@@ -206,10 +215,12 @@ class TestSplitFileList:
 
 # ─── Tests: Transforms ───────────────────────────────────────────────────────
 
+
 class TestTransforms:
     def test_train_transform_output_shape(self):
         """Train transform should produce (3, 224, 224) tensor."""
         import torch
+
         img = make_test_image(256, 256)
         transform = get_train_transforms(224)
         tensor = transform(img)
@@ -219,6 +230,7 @@ class TestTransforms:
     def test_eval_transform_output_shape(self):
         """Eval transform should produce (3, 224, 224) tensor."""
         import torch
+
         img = make_test_image(300, 300)
         transform = get_eval_transforms(224)
         tensor = transform(img)
@@ -227,6 +239,7 @@ class TestTransforms:
     def test_eval_transform_is_deterministic(self):
         """Eval transform should produce identical outputs for same image."""
         import torch
+
         img = make_test_image(224, 224)
         transform = get_eval_transforms(224)
         t1 = transform(img)

@@ -47,5 +47,7 @@ def populated_data_dir(tmp_data_dir) -> Path:
             for i in range(5):
                 data = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
                 img = Image.fromarray(data, "RGB")
-                img.save(str(tmp_data_dir / split / cls / f"img_{i:04d}.jpg"), format="JPEG")
+                img.save(
+                    str(tmp_data_dir / split / cls / f"img_{i:04d}.jpg"), format="JPEG"
+                )
     return tmp_data_dir

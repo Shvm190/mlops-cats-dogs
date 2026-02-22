@@ -74,7 +74,7 @@ def log_prediction(
     """Log a prediction result (filename only, no image data)."""
     _logger.info(
         "prediction",
-        filename=filename,          # Only filename, not content
+        filename=filename,  # Only filename, not content
         label=label,
         confidence=round(confidence, 4),
         latency_ms=round(latency_ms, 2),

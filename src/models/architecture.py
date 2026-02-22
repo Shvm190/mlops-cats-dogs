@@ -17,6 +17,7 @@ from torchvision.models import MobileNet_V2_Weights, ResNet18_Weights
 
 # ─── Baseline: Simple CNN ─────────────────────────────────────────────────────
 
+
 class SimpleCNN(nn.Module):
     """
     Baseline simple CNN for binary (cat/dog) classification.
@@ -32,25 +33,22 @@ class SimpleCNN(nn.Module):
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, 2),           # 224 → 112
-
+            nn.MaxPool2d(2, 2),  # 224 → 112
             # Block 2
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, 2),           # 112 → 56
-
+            nn.MaxPool2d(2, 2),  # 112 → 56
             # Block 3
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, 2),           # 56 → 28
-
+            nn.MaxPool2d(2, 2),  # 56 → 28
             # Block 4
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
-            nn.AdaptiveAvgPool2d((4, 4)), # → 4x4
+            nn.AdaptiveAvgPool2d((4, 4)),  # → 4x4
         )
 
         self.classifier = nn.Sequential(
@@ -71,13 +69,16 @@ class SimpleCNN(nn.Module):
 
 # ─── Transfer Learning: MobileNetV2 ──────────────────────────────────────────
 
+
 class MobileNetV2Classifier(nn.Module):
     """
     Fine-tuned MobileNetV2 for binary classification.
     Lightweight and fast — recommended for production inference.
     """
 
-    def __init__(self, num_classes: int = 2, dropout: float = 0.3, pretrained: bool = True):
+    def __init__(
+        self, num_classes: int = 2, dropout: float = 0.3, pretrained: bool = True
+    ):
         super().__init__()
 
         weights = MobileNet_V2_Weights.IMAGENET1K_V1 if pretrained else None
@@ -108,10 +109,13 @@ class MobileNetV2Classifier(nn.Module):
 
 # ─── Transfer Learning: ResNet18 ─────────────────────────────────────────────
 
+
 class ResNet18Classifier(nn.Module):
     """Fine-tuned ResNet18 for binary classification."""
 
-    def __init__(self, num_classes: int = 2, dropout: float = 0.3, pretrained: bool = True):
+    def __init__(
+        self, num_classes: int = 2, dropout: float = 0.3, pretrained: bool = True
+    ):
         super().__init__()
 
         weights = ResNet18_Weights.IMAGENET1K_V1 if pretrained else None
@@ -176,7 +180,9 @@ def build_model(
     if architecture == "simple_cnn":
         return model_cls(num_classes=num_classes, dropout=dropout)
     else:
-        return model_cls(num_classes=num_classes, dropout=dropout, pretrained=pretrained)
+        return model_cls(
+            num_classes=num_classes, dropout=dropout, pretrained=pretrained
+        )
 
 
 def count_parameters(model: nn.Module) -> dict:
