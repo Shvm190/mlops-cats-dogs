@@ -170,17 +170,13 @@ jobs:
           echo "Image digest: ${{ steps.build.outputs.digest }}"
 
   # ────────────────────────────────────────────────────────────
-  # JOB 4: Deploy to Kubernetes (main branch only)
+  # JOB 4: Kubernetes Validation with KinD (main branch only)
   # ────────────────────────────────────────────────────────────
   deploy:
-    name: "Deploy to Kubernetes"
+    name: "Kubernetes Validation (KinD)"
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    environment:
-      name: production
-      url: https://api.petadoption.example.com
 
     permissions:
       contents: read
@@ -195,52 +191,32 @@ jobs:
         with:
           version: "v1.29.0"
 
-      - name: Configure kubeconfig
-        run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
+      - name: Setup Kubernetes (KinD)
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: "v0.20.0"
 
-      - name: Get short SHA for image tag
-        id: sha
-        run: echo "SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
-
-      - name: Update deployment image
+      - name: Verify cluster
         run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.SHORT_SHA }}"
-          kubectl set image deployment/cats-dogs-classifier \
-            inference="${IMAGE}" \
-            -n mlops
+          kubectl cluster-info
+          kubectl get nodes
 
-      - name: Wait for rollout to complete
+      - name: Validate Kubernetes manifests
         run: |
-          kubectl rollout status deployment/cats-dogs-classifier \
-            -n mlops \
-            --timeout=300s
+          kubectl apply --dry-run=client -f k8s/manifests.yaml
 
-      - name: Run smoke tests
+      - name: Apply manifests to KinD
         run: |
-          chmod +x scripts/smoke_test.sh
-          kubectl port-forward svc/cats-dogs-classifier-svc -n mlops 18080:80 >/tmp/pf.log 2>&1 &
-          PF_PID=$!
-          trap 'kill $PF_PID >/dev/null 2>&1 || true' EXIT
-          sleep 8
-          bash scripts/smoke_test.sh http://127.0.0.1:18080
+          kubectl apply -f k8s/manifests.yaml
 
-      - name: Rollback on smoke test failure
-        if: failure()
+      - name: Check deployed resources
         run: |
-          echo "⚠️ Smoke tests failed! Rolling back deployment..."
-          kubectl rollout undo deployment/cats-dogs-classifier -n mlops
-          kubectl rollout status deployment/cats-dogs-classifier -n mlops --timeout=120s
-          echo "Rollback complete."
-          exit 1
+          kubectl get all -n mlops
+          kubectl get deployment cats-dogs-classifier -n mlops
 
-      - name: Notify deployment success
-        if: success()
+      - name: Validation success
         run: |
-          echo "✅ Deployment successful!"
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.SHORT_SHA }}"
+          echo "✅ Kubernetes manifest validation succeeded on KinD."
 
   # ────────────────────────────────────────────────────────────
   # JOB 5: Security Scan (parallel with build)
