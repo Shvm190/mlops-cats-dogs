@@ -207,6 +207,13 @@ jobs:
 
       - name: Apply manifests to KinD
         run: |
+          # Ensure namespace exists before applying namespaced resources.
+          kubectl apply -f - <<'EOF'
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: mlops
+          EOF
           kubectl apply -f k8s/manifests.yaml
 
       - name: Check deployed resources
