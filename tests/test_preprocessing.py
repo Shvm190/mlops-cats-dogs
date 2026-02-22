@@ -229,8 +229,6 @@ class TestTransforms:
 
     def test_eval_transform_output_shape(self):
         """Eval transform should produce (3, 224, 224) tensor."""
-        import torch
-
         img = make_test_image(300, 300)
         transform = get_eval_transforms(224)
         tensor = transform(img)

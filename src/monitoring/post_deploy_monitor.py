@@ -148,8 +148,8 @@ def compute_performance_metrics(results: List[Dict]) -> Dict:
     latencies = [r["latency_ms"] for r in valid if r["latency_ms"] is not None]
 
     label_map = {"cat": 0, "dog": 1}
-    y_true = [label_map[l] for l in true_labels]
-    y_pred = [label_map[l] for l in pred_labels]
+    y_true = [label_map[label] for label in true_labels]
+    y_pred = [label_map[label] for label in pred_labels]
 
     accuracy = accuracy_score(y_true, y_pred)
     f1 = f1_score(y_true, y_pred, average="binary", pos_label=1)

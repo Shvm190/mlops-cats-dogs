@@ -119,7 +119,7 @@ def evaluate_model(
     with open(output_path / "classification_report.txt", "w") as f:
         f.write(report)
 
-    logger.info(f"\n📊 Evaluation Results:")
+    logger.info("\n📊 Evaluation Results:")
     for k, v in metrics.items():
         logger.info(f"  {k:15s}: {v}")
     logger.info(f"\n{report}")

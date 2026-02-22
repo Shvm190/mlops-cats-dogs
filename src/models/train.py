@@ -408,7 +408,7 @@ def train(cfg: dict):
             test_labels, test_preds, target_names=["cat", "dog"]
         )
 
-        logger.info(f"\nTest Results:")
+        logger.info("\nTest Results:")
         logger.info(f"  Accuracy : {test_acc:.4f}")
         logger.info(f"  F1 Score : {f1:.4f}")
         logger.info(f"  Precision: {precision:.4f}")
@@ -498,7 +498,7 @@ def train(cfg: dict):
             registered_model_name="cats-dogs-classifier",
         )
 
-        logger.info(f"\n✅ Training complete!")
+        logger.info("\n✅ Training complete!")
         logger.info(f"   Best Val Acc: {best_val_acc:.4f}")
         logger.info(f"   Test Acc    : {test_acc:.4f}")
         logger.info(f"   MLflow Run  : {run_id}")
