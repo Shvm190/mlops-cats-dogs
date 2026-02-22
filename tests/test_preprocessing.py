@@ -25,7 +25,6 @@ from src.data.dataset import (
     IDX_TO_CLASS,
 )
 
-
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 
 

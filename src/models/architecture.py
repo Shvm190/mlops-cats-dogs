@@ -14,7 +14,6 @@ import torch.nn as nn
 from torchvision import models
 from torchvision.models import MobileNet_V2_Weights, ResNet18_Weights
 
-
 # ─── Baseline: Simple CNN ─────────────────────────────────────────────────────
 
 

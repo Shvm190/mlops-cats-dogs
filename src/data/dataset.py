@@ -13,7 +13,6 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from PIL import Image
 
-
 # ─── Label Mapping ──────────────────────────────────────────────────────────
 
 CLASS_TO_IDX = {"cat": 0, "dog": 1}

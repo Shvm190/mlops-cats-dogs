@@ -9,7 +9,6 @@ from typing import Dict
 import requests
 import streamlit as st
 
-
 DEFAULT_API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8080")
 REQUEST_TIMEOUT_SEC = 30
 
