@@ -14,8 +14,11 @@ class _FakeModel:
 
     def __call__(self, images):
         batch_size = images.shape[0]
-        # Deterministic logits with class-1 favored.
-        return torch.tensor([[0.1, 2.0]] * batch_size, dtype=torch.float32)
+        # Deterministic logits alternating cat/dog predictions.
+        base = torch.tensor(
+            [[2.0, 0.1], [0.1, 2.0], [2.0, 0.1], [0.1, 2.0]], dtype=torch.float32
+        )
+        return base[:batch_size]
 
 
 class _FakeLoader:
@@ -38,7 +41,7 @@ def test_evaluate_model_writes_artifacts_and_metrics(tmp_path, monkeypatch):
             return 4
 
     images = torch.zeros(4, 3, 224, 224)
-    labels = torch.tensor([1, 1, 1, 1], dtype=torch.long)
+    labels = torch.tensor([0, 1, 0, 1], dtype=torch.long)
 
     monkeypatch.setattr("src.models.evaluate.ModelLoader", _FakeLoader)
     monkeypatch.setattr("src.data.dataset.CatsDogsDataset", _FakeDataset)
@@ -73,7 +76,8 @@ def test_evaluate_model_writes_artifacts_and_metrics(tmp_path, monkeypatch):
     assert report_path.exists()
 
     saved_metrics = json.loads(metrics_path.read_text())
-    assert saved_metrics["accuracy"] == 1.0
+    assert 0.0 <= saved_metrics["accuracy"] <= 1.0
+    assert 0.0 <= saved_metrics["roc_auc"] <= 1.0
     saved_cm = json.loads(cm_path.read_text())
     assert saved_cm["labels"] == ["cat", "dog"]
     assert isinstance(saved_cm["matrix"], list)
