@@ -23,7 +23,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/YOUR_ORG/mlops-cats-dogs.git
+    repoURL: https://github.com/Shvm190/mlops-cats-dogs.git
     targetRevision: main
     path: k8s/
 
@@ -64,14 +64,14 @@ metadata:
   namespace: argocd
   annotations:
     # Argo CD Image Updater annotations
-    argocd-image-updater.argoproj.io/image-list: "inference=ghcr.io/YOUR_ORG/cats-dogs-classifier"
+    argocd-image-updater.argoproj.io/image-list: "inference=ghcr.io/Shvm190/cats-dogs-classifier"
     argocd-image-updater.argoproj.io/inference.update-strategy: digest
     argocd-image-updater.argoproj.io/inference.tag-filter: "sha-*"
     argocd-image-updater.argoproj.io/write-back-method: git
 spec:
   project: default
   source:
-    repoURL: https://github.com/YOUR_ORG/mlops-cats-dogs.git
+    repoURL: https://github.com/Shvm190/mlops-cats-dogs.git
     targetRevision: main
     path: k8s/
   destination:

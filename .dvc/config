@@ -1,0 +1,8 @@
+[core]
+    autostage = true
+    analytics = false
+    remote = local-remote
+[cache]
+    type = reflink, copy
+['remote "local-remote"']
+    url = /tmp/dvc-remote-cache

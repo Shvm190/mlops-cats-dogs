@@ -1,0 +1,272 @@
+# .github/workflows/ci-cd.yml
+# ============================================================
+# GitHub Actions CI/CD Pipeline
+# Cats vs Dogs MLOps Pipeline
+#
+# Triggers:
+#   - Push to any branch   → CI (test + build)
+#   - Push to main branch  → CI + CD (deploy)
+#   - Pull Request to main → CI only
+# ============================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/cats-dogs-classifier
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  # ────────────────────────────────────────────────────────────
+  # JOB 1: Lint & Static Analysis
+  # ────────────────────────────────────────────────────────────
+  lint:
+    name: "Lint & Style Check"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install linting tools
+        run: pip install ruff black
+
+      - name: Run ruff (fast linter)
+        run: ruff check src/ tests/ --output-format=github
+
+      - name: Check formatting with black
+        run: black --check --diff src/ tests/
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 2: Unit Tests
+  # ────────────────────────────────────────────────────────────
+  test:
+    name: "Unit Tests (Python ${{ matrix.python-version }})"
+    runs-on: ubuntu-latest
+    needs: lint
+
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov httpx
+
+      - name: Create necessary directories
+        run: |
+          mkdir -p artifacts/models artifacts/checkpoints data/processed/train/cat data/processed/train/dog
+          mkdir -p data/processed/val/cat data/processed/val/dog
+          mkdir -p data/processed/test/cat data/processed/test/dog
+
+      - name: Run unit tests with coverage
+        run: |
+          pytest tests/ -v \
+            --cov=src \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            -x \
+            --tb=short \
+            --ignore=tests/test_integration.py
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.10'
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-py${{ matrix.python-version }}
+          path: coverage.xml
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 3: Build Docker Image
+  # ────────────────────────────────────────────────────────────
+  build:
+    name: "Build Docker Image"
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Output image info
+        run: |
+          echo "Image tags: ${{ steps.meta.outputs.tags }}"
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 4: Deploy to Kubernetes (main branch only)
+  # ────────────────────────────────────────────────────────────
+  deploy:
+    name: "Deploy to Kubernetes"
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    environment:
+      name: production
+      url: https://api.petadoption.example.com
+
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.29.0"
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Get short SHA for image tag
+        id: sha
+        run: echo "SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Update deployment image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.SHORT_SHA }}"
+          kubectl set image deployment/cats-dogs-classifier \
+            inference="${IMAGE}" \
+            -n mlops
+
+      - name: Wait for rollout to complete
+        run: |
+          kubectl rollout status deployment/cats-dogs-classifier \
+            -n mlops \
+            --timeout=300s
+
+      - name: Run smoke tests
+        run: |
+          chmod +x scripts/smoke_test.sh
+          kubectl port-forward svc/cats-dogs-classifier-svc -n mlops 18080:80 >/tmp/pf.log 2>&1 &
+          PF_PID=$!
+          trap 'kill $PF_PID >/dev/null 2>&1 || true' EXIT
+          sleep 8
+          bash scripts/smoke_test.sh http://127.0.0.1:18080
+
+      - name: Rollback on smoke test failure
+        if: failure()
+        run: |
+          echo "⚠️ Smoke tests failed! Rolling back deployment..."
+          kubectl rollout undo deployment/cats-dogs-classifier -n mlops
+          kubectl rollout status deployment/cats-dogs-classifier -n mlops --timeout=120s
+          echo "Rollback complete."
+          exit 1
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Deployment successful!"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.SHORT_SHA }}"
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 5: Security Scan (parallel with build)
+  # ────────────────────────────────────────────────────────────
+  security-scan:
+    name: "Security Vulnerability Scan"
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-results.sarif"

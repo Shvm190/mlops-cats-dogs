@@ -46,7 +46,7 @@ spec:
 
       containers:
         - name: inference
-          image: ghcr.io/YOUR_ORG/cats-dogs-classifier:latest   # Updated by CD pipeline
+          image: ghcr.io/Shvm190/cats-dogs-classifier:latest   # Updated by CD pipeline
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
