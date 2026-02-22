@@ -113,7 +113,10 @@ def test_run_monitoring_success_writes_report(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(
         "src.monitoring.post_deploy_monitor.generate_simulated_batch",
-        lambda test_dir, max_samples: [{"image_path": "a.jpg", "true_label": "cat"}],
+        lambda test_dir, max_samples: [
+            {"image_path": "a.jpg", "true_label": "cat"},
+            {"image_path": "b.jpg", "true_label": "dog"},
+        ],
     )
     monkeypatch.setattr(
         "src.monitoring.post_deploy_monitor.run_predictions_on_batch",
@@ -125,7 +128,15 @@ def test_run_monitoring_success_writes_report(tmp_path, monkeypatch):
                 "probabilities": {"cat": 0.95, "dog": 0.05},
                 "latency_ms": 7.2,
                 "correct": True,
-            }
+            },
+            {
+                "true_label": "dog",
+                "predicted_label": "dog",
+                "confidence": 0.93,
+                "probabilities": {"cat": 0.07, "dog": 0.93},
+                "latency_ms": 8.1,
+                "correct": True,
+            },
         ],
     )
 
