@@ -19,7 +19,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/cats-dogs-classifier
+  IMAGE_NAME: shvm190/cats-dogs-classifier
   PYTHON_VERSION: "3.10"
 
 jobs:
